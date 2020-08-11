@@ -15,14 +15,15 @@
  * =============================================================================
  */
 
-import {env, KernelConfig, KernelFunc, TensorInfo} from '@tensorflow/tfjs-core';
+import {//env, 
+  KernelConfig, KernelFunc, TensorInfo} from '@tensorflow/tfjs-core';
 import {FromPixels, FromPixelsAttrs, FromPixelsInputs} from '@tensorflow/tfjs-core';
 
 import {MathBackendWebGL} from '../backend_webgl';
-import {TextureUsage} from '../tex_util';
+//import {TextureUsage} from '../tex_util';
 
-import {FromPixelsProgram} from './FromPixels_utils/from_pixels_gpu';
-import {FromPixelsPackedProgram} from './FromPixels_utils/from_pixels_packed_gpu';
+//import {FromPixelsProgram} from './FromPixels_utils/from_pixels_gpu';
+//import {FromPixelsPackedProgram} from './FromPixels_utils/from_pixels_packed_gpu';
 
 export const fromPixelsConfig: KernelConfig = {
   kernelName: FromPixels,
@@ -52,9 +53,9 @@ function fromPixels(args: {
       ] :
       [pixels.width, pixels.height];
 
-  const texShape: [number, number] = [height, width];
+  //const texShape: [number, number] = [height, width];
   const outShape = [height, width, numChannels];
-
+  
   if (isImage || isVideo) {
     if (fromPixels2DContext == null) {
       fromPixels2DContext = document.createElement('canvas').getContext('2d');
@@ -64,10 +65,37 @@ function fromPixels(args: {
     fromPixels2DContext.canvas.height = height;
     fromPixels2DContext.drawImage(
         pixels as HTMLVideoElement | HTMLImageElement, 0, 0, width, height);
-    pixels = fromPixels2DContext.canvas;
   }
+  const imageData = fromPixels2DContext.getImageData(0, 0, width, height).data;
+     // TODO: Encoding should happen on GPU once we no longer have to download
+    // image data to the CPU.
+    let pixelArray = new Uint8Array(pixels.width * pixels.height * numChannels);
+    if (numChannels != null && numChannels !== 4) {
+      pixelArray = 
+        new Uint8Array(pixels.width * pixels.height * numChannels);
 
-  const tempPixelHandle = backend.makeTensorInfo(texShape, 'int32');
+      const dataLength = imageData.length;
+      for (let i = 0; i < dataLength; i++) {
+        if (i % 4 < numChannels) {
+          const pixelIndex = Math.floor(i / 4);
+          pixelArray[pixelIndex * numChannels + i % 4] = imageData[i];
+        }
+      }
+    }
+
+    const output = backend.makeOutput(outShape, 'int32');
+
+    /*const info = backend.tensorMap.get(output.dataId);
+    info.values = new Int32Array(pixelArray);
+    this.maybeReleaseBuffer(output.dataId);*/
+    const data = backend.texData.get(output.dataId);
+    data.values = pixelArray;
+
+
+    backend.uploadToGPU(output.dataId);
+    return output;
+
+  /*const tempPixelHandle = backend.makeTensorInfo(texShape, 'int32');
   // This is a byte texture with pixels.
   backend.texData.get(tempPixelHandle.dataId).usage = TextureUsage.PIXELS;
   backend.gpgpu.uploadPixelDataToTexture(
@@ -77,5 +105,5 @@ function fromPixels(args: {
       new FromPixelsProgram(outShape);
   const res = backend.runWebGLProgram(program, [tempPixelHandle], 'int32');
   backend.disposeData(tempPixelHandle.dataId);
-  return res;
+  return res;*/
 }

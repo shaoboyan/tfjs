@@ -2423,7 +2423,7 @@ export class MathBackendWebGL extends KernelBackend {
     return {dataId, shape, dtype};
   }
 
-  private makeOutput<T extends Tensor>(shape: number[], dtype: DataType): T {
+  makeOutput<T extends Tensor>(shape: number[], dtype: DataType): T {
     const {dataId} = this.makeTensorInfo(shape, dtype);
     return engine().makeTensorFromDataId(dataId, shape, dtype, this) as T;
   }
@@ -2686,7 +2686,7 @@ export class MathBackendWebGL extends KernelBackend {
     return this.floatPrecision() === 32 ? EPSILON_FLOAT32 : EPSILON_FLOAT16;
   }
 
-  private uploadToGPU(dataId: DataId): void {
+  uploadToGPU(dataId: DataId): void {
     const texData = this.texData.get(dataId);
     const {shape, dtype, values, texture, usage, isPacked} = texData;
 
